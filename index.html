@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>상촌중2 수학: 삼각형의 내심 탐구</title>
+<style>
+* { box-sizing: border-box; touch-action: manipulation; }
+body { margin: 0; font-family: "Noto Sans KR", "Malgun Gothic", Arial, sans-serif; background: #f6f8fc; color: #27344d; overflow-x: hidden; }
+.app { width: 100vw; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.header { height: 60px; padding: 10px 20px; flex-shrink: 0; background: #059669; color: white; display: flex; align-items: center; gap: 14px; }
+.logo { width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; background: white; color: #059669; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; }
+.header h1 { margin: 0; font-size: 16px; }
+.header p { margin: 2px 0 0; font-size: 11px; opacity: 0.88; }
+
+.body { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+@media (min-width: 768px) {
+    .body { flex-direction: row; }
+    .canvas-wrap { flex: 1; height: 100%; border-right: 1px solid #dce3ef; }
+    .sidebar { width: 380px; height: 100%; overflow-y: auto; flex-shrink: 0; }
+}
+
+@media (max-width: 767px) {
+    .app { height: auto; min-height: 100vh; overflow: auto; }
+    .body { overflow: visible; }
+    .canvas-wrap { width: 100%; height: 50vh; min-height: 350px; }
+    .sidebar { width: 100%; }
+}
+
+.sidebar { background: white; padding: 16px; }
+.stage { border: 2px solid #e5e9f2; border-radius: 14px; padding: 14px; margin-bottom: 12px; background: white; transition: 0.2s; }
+.stage.active { border-color: #059669; background: #ecfdf5; }
+.stage.locked { opacity: 0.55; }
+.stage.done { border-color: #a7f3d0; }
+.stage-head { display: flex; align-items: center; gap: 10px; }
+.num { width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: #e8ecf3; color: #8994a8; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; }
+.stage.active .num { background: #059669; color: white; }
+.stage.done .num { background: #d1fae5; color: #059669; }
+.stage h2 { margin: 0; font-size: 15px; }
+.stage p { margin: 8px 0 0; color: #66738a; font-size: 12.5px; line-height: 1.6; }
+.stage strong { color: #059669; }
+.notice { margin-top: 10px; padding: 9px 11px; border-radius: 8px; background: #fff3d7; color: #815f10; font-size: 12.5px; line-height: 1.5; }
+.notice.success { background: #e8f8ef; color: #237548; }
+.measure { margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: #f0f2f7; display: flex; justify-content: space-between; font-size: 12.5px; color: #66738a; }
+.measure b { color: #059669; }
+.question { margin-top: 10px; font-weight: 700; color: #38445c; line-height: 1.5; font-size: 13px; }
+.move-info { margin-top: 10px; padding: 9px 11px; border-radius: 8px; background: #e6f4ea; color: #059669; font-size: 12.5px; line-height: 1.5; }
+
+.canvas-wrap { position: relative; background-color: #fbfcff; background-image: linear-gradient(#e6eaf2 1px, transparent 1px), linear-gradient(90deg, #e6eaf2 1px, transparent 1px); background-size: 20px 20px; overflow: hidden; }
+.toolbar { position: absolute; left: 12px; right: 12px; top: 12px; height: 40px; padding: 0 12px; background: white; border: 1px solid #dde4ef; border-radius: 10px; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(45,59,100,0.06); z-index: 30; }
+.toolbar-label { font-size: 12px; font-weight: 800; color: #5b677c; }
+.pill { padding: 4px 8px; border-radius: 6px; background: #e6f4ea; color: #059669; font-size: 12px; font-weight: 700; }
+.reset-btn { margin-left: auto; border: none; border-radius: 8px; padding: 6px 10px; background: #e9edf5; color: #65728a; font-weight: 700; font-size: 12px; cursor: pointer; }
+.action-btn { border: none; border-radius: 8px; padding: 9px 13px; background: #059669; color: white; font-weight: 700; cursor: pointer; margin-top: 10px; width: 100%; font-size: 13px; }
+.canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; touch-action: none; transform-origin: 0 0; cursor: grab; }
+.canvas:active { cursor: grabbing; }
+.point { cursor: pointer; }
+.point-label { font-weight: 800; fill: #047857; pointer-events: none; text-anchor: middle; dominant-baseline: central; }
+.triangle-side { stroke: #059669; stroke-width: 4; cursor: pointer; }
+.bisector { stroke: #d97706; stroke-width: 2.5; stroke-dasharray: 8 7; pointer-events: none; }
+.perp-line { stroke: #2563eb; stroke-width: 3; cursor: pointer; }
+.perp-hit { stroke: transparent; stroke-width: 24; fill: none; cursor: pointer; pointer-events: stroke; }
+.angle-arc { fill: none; stroke: #d97706; stroke-width: 2.5; pointer-events: none; }
+.right-angle { fill: none; stroke: #2563eb; stroke-width: 2.5; pointer-events: none; }
+.center { fill: #2563eb; stroke: white; stroke-width: 3; cursor: pointer; }
+.center-label { font-weight: 800; fill: #1d4ed8; pointer-events: none; }
+.center-label-equi { font-weight: 900; fill: #dc2626; pointer-events: none; }
+.measurement-bg { fill: white; stroke: #2563eb; stroke-width: 1.5; pointer-events: none; }
+.measurement-label { font-size: 13px; font-weight: 800; fill: #1d4ed8; pointer-events: none; }
+.incircle { fill: #2563eb10; stroke: #2563eb; stroke-width: 2.5; stroke-dasharray: 8 5; pointer-events: none; }
+.circumcircle { fill: #7c3aed08; stroke: #7c3aed; stroke-width: 2.5; stroke-dasharray: 6 5; pointer-events: none; }
+.drag-point { cursor: grab; }
+.hint { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); padding: 8px 15px; background: #343a4c; color: white; border-radius: 20px; font-size: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 20; white-space: nowrap; max-width: 90%; text-overflow: ellipsis; overflow: hidden; }
+.hint-equi { color: #fbbf24; font-weight: bold; }
+.summary-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+.summary-table th, .summary-table td { border: 1px solid #dce3ef; padding: 6px; text-align: center; }
+.summary-table th { background: #f0f2f7; color: #38445c; }
+.overline { text-decoration: overline; }
+</style>
+</head>
+<body>
+
+<div class="app">
+<header class="header">
+    <div class="logo">△</div>
+    <div>
+        <h1>상촌중2 수학: 삼각형의 내심 탐구</h1>
+        <p>점과 선을 터치하여 내심의 성질을 알아봅시다!</p>
+    </div>
+</header>
+
+<div class="body">
+<main class="canvas-wrap" id="canvasWrap">
+    <div class="toolbar">
+        <span class="toolbar-label">도구:</span>
+        <span id="toolText" class="pill">모눈 터치로 점 A, B, C 찍기</span>
+        <button class="reset-btn" id="zoomOutBtn" onclick="changeZoomFactor(0.9)">−</button>
+        <span id="zoomText" class="pill">100%</span>
+        <button class="reset-btn" id="zoomInBtn" onclick="changeZoomFactor(1.1)">+</button>
+        <button class="reset-btn" onclick="resetZoom()">화면 맞춤</button>
+        <button class="reset-btn" onclick="resetAll()">↺ 처음부터</button>
+    </div>
+    <svg id="svg" class="canvas"></svg>
+    <div id="hint" class="hint">💡 모눈 위 3곳을 터치하여 삼각형 ABC를 완성하세요. (마우스 휠/드래그로 화면 조절 가능)</div>
+</main>
+
+<aside class="sidebar">
+
+<div id="step1" class="stage active">
+    <div class="stage-head"><div class="num">1</div><h2>삼각형 ABC 그리기</h2></div>
+    <p>모눈종이에 <strong>세 개의 점</strong>을 터치하여 삼각형 ABC를 만들어보세요.</p>
+    <div id="s1msg" class="notice">A, B, C 세 점을 차례로 터치하세요. (0/3)</div>
+</div>
+
+<div id="step2" class="stage locked">
+    <div class="stage-head"><div class="num">2</div><h2>세 내각의 이등분선 그리기</h2></div>
+    <p>꼭짓점 <strong>A, B, C</strong>를 터치하여 각의 이등분선을 그려보세요.</p>
+    <div id="s2msg" class="notice">먼저 삼각형 ABC를 완성하세요.</div>
+</div>
+
+<div id="step3" class="stage locked">
+    <div class="stage-head"><div class="num">3</div><h2>내심 I 찾기</h2></div>
+    <p>세 각의 이등분선이 <strong>만나는 교점</strong>을 터치하여 내심 I를 찾아보세요.</p>
+    <div id="s3msg" class="notice">먼저 세 각의 이등분선을 그려보세요.</div>
+</div>
+
+<div id="step4" class="stage locked">
+    <div class="stage-head"><div class="num">4</div><h2>내심에서 세 변에 수선 내리기</h2></div>
+    <p>내심 I를 터치한 후 <strong>세 변 AB, BC, CA</strong>를 차례로 터치하세요.</p>
+    <div id="s4msg" class="notice">내심 I를 먼저 찾아보세요.</div>
+</div>
+
+<div id="step5" class="stage locked">
+    <div class="stage-head"><div class="num">5</div><h2>수선의 길이 측정하기</h2></div>
+    <p>파란색 수선 ID, IE, IF를 터치해 길이를 확인해보세요.</p>
+    <div class="measure"><span>수선 ID (변 AB까지):</span><b id="idLen">미측정</b></div>
+    <div class="measure"><span>수선 IE (변 BC까지):</span><b id="ieLen">미측정</b></div>
+    <div class="measure"><span>수선 IF (변 CA까지):</span><b id="ifLen">미측정</b></div>
+    <div id="s5msg" class="notice">ID, IE, IF를 모두 터치하세요.</div>
+    <div id="finding" class="question" style="display:none">
+        💡 무엇을 발견했나요?<br>
+        <span style="color:#059669;font-size:16px"><span class="overline">ID</span> = <span class="overline">IE</span> = <span class="overline">IF</span></span><br>
+        내심은 삼각형의 세 변에서 같은 거리에 있습니다.
+        <button class="action-btn" onclick="goToStep6()">다음: 꼭짓점 옮겨보기 →</button>
+    </div>
+</div>
+
+<div id="step6" class="stage locked">
+    <div class="stage-head"><div class="num">6</div><h2>삼각형 변형 & 내심/외심 관찰</h2></div>
+    <p>꼭짓점 <strong>A, B, C를 드래그</strong>하여 삼각형 모양을 자유롭게 바꿔보세요.</p>
+    <div id="shapeInfo" class="move-info">
+        <b>📐 삼각형 상태: <span id="triTypeStr">-</span></b><br>
+        <span id="triPosStr">점을 드래그하여 내심의 위치를 관찰하세요.</span>
+    </div>
+    <button id="toStep7Btn" class="action-btn" style="display:none;" onclick="goToStep7()">최종 개념 정리 보기 →</button>
+</div>
+
+<div id="step7" class="stage locked">
+    <div class="stage-head"><div class="num">7</div><h2>내심 개념 최종 정리</h2></div>
+    <p style="line-height:1.6;">
+        <strong>1. 내심의 정의:</strong> 삼각형 세 내각의 이등분선의 교점<br>
+        <strong>2. 내심의 성질:</strong> 내심에서 세 변에 이르는 거리는 같다.<br>
+        <span style="color:#059669; font-weight:bold;">(<span class="overline">ID</span> = <span class="overline">IE</span> = <span class="overline">IF</span> = 내접원 반지름)</span>
+    </p>
+    <table class="summary-table">
+        <tr><th>삼각형 종류</th><th>내심의 위치</th></tr>
+        <tr><td>모든 삼각형</td><td>항상 삼각형 <b>내부</b></td></tr>
+        <tr><td><b>정삼각형</b></td><td><b>내심과 외심 위치 일치!</b></td></tr>
+    </table>
+</div>
+
+</aside>
+</div>
+</div>
+
+<script>
+const svg = document.getElementById("svg");
+const canvasWrap = document.getElementById("canvasWrap");
+const zoomText = document.getElementById("zoomText");
+const NS = "http://www.w3.org/2000/svg";
+
+let points = {};
+let bisectors = {};
+let perps = {};
+let incenter = null;
+let step = 1;
+let perpMode = false;
+let draggingPoint = null;
+let hasDraggedInStep6 = false;
+let isEquilateral = false;
+
+// 줌 & 팬 변수
+let zoomScale = 1;
+let zoomX = 0;
+let zoomY = 0;
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 3.0;
+
+let isPanning = false;
+let startPanX = 0, startPanY = 0;
+let hasMovedPan = false;
+
+function applyZoom() {
+    svg.style.transform = `translate(${zoomX}px, ${zoomY}px) scale(${zoomScale})`;
+    zoomText.textContent = Math.round(zoomScale * 100) + '%';
+}
+
+function zoomAtPoint(scaleFactor, clientX, clientY) {
+    const rect = canvasWrap.getBoundingClientRect();
+    const cx = clientX - rect.left;
+    const cy = clientY - rect.top;
+
+    const oldScale = zoomScale;
+    let newScale = zoomScale * scaleFactor;
+    newScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newScale));
+
+    if (newScale === oldScale) return;
+
+    zoomX = cx - (cx - zoomX) * (newScale / oldScale);
+    zoomY = cy - (cy - zoomY) * (newScale / oldScale);
+    zoomScale = newScale;
+
+    applyZoom();
+}
+
+function changeZoomFactor(factor) {
+    const rect = canvasWrap.getBoundingClientRect();
+    zoomAtPoint(factor, rect.left + rect.width / 2, rect.top + rect.height / 2);
+}
+
+function resetZoom() {
+    zoomScale = 1;
+    zoomX = 0;
+    zoomY = 0;
+    applyZoom();
+}
+
+function getSvgPoint(clientX, clientY) {
+    const rect = svg.getBoundingClientRect();
+    return {
+        x: (clientX - rect.left) / zoomScale,
+        y: (clientY - rect.top) / zoomScale
+    };
+}
+
+// 마우스 휠 이벤트 (확대/축소)
+canvasWrap.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.1 : 0.9;
+    zoomAtPoint(factor, e.clientX, e.clientY);
+}, { passive: false });
+
+// 마우스 다운 (화면 이동 또는 점 클릭/드래그 판별)
+svg.addEventListener("mousedown", (e) => {
+    if (e.button === 2 || (e.button === 0 && e.target === svg)) {
+        isPanning = true;
+        startPanX = e.clientX - zoomX;
+        startPanY = e.clientY - zoomY;
+        hasMovedPan = false;
+    }
+});
+
+window.addEventListener("mousemove", (e) => {
+    if (isPanning) {
+        const dx = (e.clientX - zoomX) - startPanX;
+        const dy = (e.clientY - zoomY) - startPanY;
+        if (Math.hypot(dx, dy) > 3) hasMovedPan = true;
+        
+        zoomX = e.clientX - startPanX;
+        zoomY = e.clientY - startPanY;
+        applyZoom();
+    }
+});
+
+window.addEventListener("mouseup", () => {
+    isPanning = false;
+});
+
+svg.addEventListener("contextmenu", (e) => e.preventDefault());
+
+const PIXELS_PER_CM = 25;
+
+function createSVG(tag, attrs = {}) {
+    const el = document.createElementNS(NS, tag);
+    for (const key in attrs) {
+        el.setAttribute(key, attrs[key]);
+    }
+    svg.appendChild(el);
+    return el;
+}
+
+function distance(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function getDynamicFontSize() {
+    if (!points.A || !points.B || !points.C) return 16;
+    const peri = distance(points.A, points.B) + distance(points.B, points.C) + distance(points.C, points.A);
+    const scale = Math.max(1, peri / 600);
+    return Math.min(32, Math.round(16 * scale));
+}
+
+function getCentroid() {
+    if (!points.A || !points.B || !points.C) return null;
+    return {
+        x: (points.A.x + points.B.x + points.C.x) / 3,
+        y: (points.A.y + points.B.y + points.C.y) / 3
+    };
+}
+
+function getOuterLabelPos(P, customOffset = 22) {
+    const C = getCentroid();
+    if (!C) return { x: P.x, y: P.y - 15 };
+    let dx = P.x - C.x, dy = P.y - C.y;
+    let len = Math.hypot(dx, dy);
+    if (len === 0) return { x: P.x, y: P.y - 15 };
+    const fontSize = getDynamicFontSize();
+    const offset = customOffset + (fontSize - 16) * 0.5;
+    return { x: P.x + (dx / len) * offset, y: P.y + (dy / len) * offset };
+}
+
+function calculateIncenter(A, B, C) {
+    const a = distance(B, C), b = distance(A, C), c = distance(A, B);
+    const p = a + b + c;
+    if (p === 0) return null;
+    const ix = (a * A.x + b * B.x + c * C.x) / p;
+    const iy = (a * A.y + b * B.y + c * C.y) / p;
+    const s = p / 2;
+    const area = Math.sqrt(Math.max(0, s * (s - a) * (s - b) * (s - c)));
+    const r = area / s;
+    const R = (a * b * c) / (4 * area);
+    return { x: ix, y: iy, r: r, R: R };
+}
+
+function projectPointToSegment(P, A, B) {
+    const l2 = Math.pow(distance(A, B), 2);
+    if (l2 === 0) return { x: A.x, y: A.y };
+    let t = ((P.x - A.x) * (B.x - A.x) + (P.y - A.y) * (B.y - A.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return { x: A.x + t * (B.x - A.x), y: A.y + t * (B.y - A.y) };
+}
+
+function getAngleBisectorRay(vertexKey) {
+    let V = points[vertexKey], P1, P2;
+    if (vertexKey === "A") { P1 = points.B; P2 = points.C; }
+    else if (vertexKey === "B") { P1 = points.A; P2 = points.C; }
+    else { P1 = points.A; P2 = points.B; }
+    if (!V || !P1 || !P2) return null;
+
+    const d1 = { x: P1.x - V.x, y: P1.y - V.y }, d2 = { x: P2.x - V.x, y: P2.y - V.y };
+    const l1 = Math.hypot(d1.x, d1.y), l2 = Math.hypot(d2.x, d2.y);
+    if (!l1 || !l2) return null;
+
+    const u1 = { x: d1.x / l1, y: d1.y / l1 }, u2 = { x: d2.x / l2, y: d2.y / l2 };
+    const bisectDir = { x: u1.x + u2.x, y: u1.y + u2.y };
+    const blen = Math.hypot(bisectDir.x, bisectDir.y);
+    if (!blen) return null;
+
+    const uB = { x: bisectDir.x / blen, y: bisectDir.y / blen };
+    return { x1: V.x, y1: V.y, x2: V.x + uB.x * 3000, y2: V.y + uB.y * 3000, u1, u2 };
+}
+
+function checkAndSnapEquilateral() {
+    if (!points.A || !points.B || !points.C) return false;
+    const a = distance(points.B, points.C), b = distance(points.A, points.C), c = distance(points.A, points.B);
+    const avg = (a + b + c) / 3;
+
+    if (Math.abs(a - avg) / avg < 0.06 && Math.abs(b - avg) / avg < 0.06 && Math.abs(c - avg) / avg < 0.06) {
+        if (draggingPoint) {
+            const center = { x: (points.A.x + points.B.x + points.C.x) / 3, y: (points.A.y + points.B.y + points.C.y) / 3 };
+            const r = avg / Math.sqrt(3);
+            let baseAngle = Math.atan2(points.A.y - center.y, points.A.x - center.x);
+            points.A = { x: center.x + r * Math.cos(baseAngle), y: center.y + r * Math.sin(baseAngle) };
+            points.B = { x: center.x + r * Math.cos(baseAngle + Math.PI * 2 / 3), y: center.y + r * Math.sin(baseAngle + Math.PI * 2 / 3) };
+            points.C = { x: center.x + r * Math.cos(baseAngle + Math.PI * 4 / 3), y: center.y + r * Math.sin(baseAngle + Math.PI * 4 / 3) };
+        }
+        return true;
+    }
+    return false;
+}
+
+function getTriangleState() {
+    if (!points.A || !points.B || !points.C) return null;
+    isEquilateral = checkAndSnapEquilateral();
+    if (isEquilateral) {
+        return { type: "정삼각형 ✨", pos: "<b style='color:#dc2626;'>정삼각형일 때 내심과 외심의 위치가 같습니다!</b>" };
+    }
+    const a = distance(points.B, points.C), b = distance(points.A, points.C), c = distance(points.A, points.B);
+    const angA = Math.acos((b*b + c*c - a*a) / (2*b*c)) * (180 / Math.PI);
+    const angB = Math.acos((a*a + c*c - b*b) / (2*a*c)) * (180 / Math.PI);
+    const angC = Math.acos((a*a + b*b - c*c) / (2*a*b)) * (180 / Math.PI);
+    const maxAng = Math.max(angA, angB, angC);
+    let type = maxAng < 90 ? "예각삼각형" : (Math.abs(maxAng - 90) < 3.0 ? "직각삼각형" : "둔각삼각형");
+    return { type: type, pos: "내심은 항상 삼각형의 내부에 있습니다." };
+}
+
+function drawAngleArc(V, u1, u2, vertexKey) {
+    let a1 = Math.atan2(u1.y, u1.x), a2 = Math.atan2(u2.y, u2.x);
+    let diff = a2 - a1;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    const angleDeg = Math.abs(diff) * (180 / Math.PI);
+    let dynamicArcR = angleDeg < 25 ? 60 : (angleDeg < 45 ? 48 : (angleDeg > 90 ? 28 : 36));
+    const sweepFlag = diff > 0 ? 1 : 0;
+    
+    createSVG("path", {
+        d: `M ${V.x + Math.cos(a1)*dynamicArcR} ${V.y + Math.sin(a1)*dynamicArcR} A ${dynamicArcR} ${dynamicArcR} 0 0 ${sweepFlag} ${V.x + Math.cos(a2)*dynamicArcR} ${V.y + Math.sin(a2)*dynamicArcR}`,
+        class: "angle-arc"
+    });
+
+    const symbolR = dynamicArcR * 0.65; 
+    const p1 = { x: V.x + Math.cos(a1 + diff * 0.25) * symbolR, y: V.y + Math.sin(a1 + diff * 0.25) * symbolR };
+    const p2 = { x: V.x + Math.cos(a1 + diff * 0.75) * symbolR, y: V.y + Math.sin(a1 + diff * 0.75) * symbolR };
+    const symbolSize = angleDeg < 30 ? 3 : 4;
+
+    if (isEquilateral || vertexKey === "A") {
+        createSVG("circle", { cx: p1.x, cy: p1.y, r: symbolSize, fill: "#d97706" });
+        createSVG("circle", { cx: p2.x, cy: p2.y, r: symbolSize, fill: "#d97706" });
+    } else if (vertexKey === "B") {
+        [p1, p2].forEach(p => {
+            createSVG("line", { x1: p.x - symbolSize, y1: p.y - symbolSize, x2: p.x + symbolSize, y2: p.y + symbolSize, stroke: "#d97706", "stroke-width": 2 });
+            createSVG("line", { x1: p.x + symbolSize, y1: p.y - symbolSize, x2: p.x - symbolSize, y2: p.y + symbolSize, stroke: "#d97706", "stroke-width": 2 });
+        });
+    } else if (vertexKey === "C") {
+        createSVG("circle", { cx: p1.x, cy: p1.y, r: symbolSize, fill: "none", stroke: "#d97706", "stroke-width": 2 });
+        createSVG("circle", { cx: p2.x, cy: p2.y, r: symbolSize, fill: "none", stroke: "#d97706", "stroke-width": 2 });
+    }
+}
+
+function drawRightAngleMark(P, A, B) {
+    const vLine = { x: incenter.x - P.x, y: incenter.y - P.y };
+    const vSide = { x: A.x - P.x, y: A.y - P.y };
+    const l1 = Math.hypot(vLine.x, vLine.y), l2 = Math.hypot(vSide.x, vSide.y);
+    if (!l1 || !l2) return;
+    const u1 = { x: vLine.x / l1, y: vLine.y / l1 }, u2 = { x: vSide.x / l2, y: vSide.y / l2 };
+    const sz = 10;
+    const pt1 = { x: P.x + u1.x * sz, y: P.y + u1.y * sz };
+    const pt2 = { x: pt1.x + u2.x * sz, y: pt1.y + u2.y * sz };
+    const pt3 = { x: P.x + u2.x * sz, y: P.y + u2.y * sz };
+    createSVG("polyline", { points: `${pt1.x},${pt1.y} ${pt2.x},${pt2.y} ${pt3.x},${pt3.y}`, class: "right-angle" });
+}
+
+function drawBisectMarks(A, B, P) {
+    const drawSegmentMark = (p1, p2) => {
+        const mid = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+        const len = Math.hypot(dx, dy);
+        if (!len) return;
+        const nx = -dy / len, ny = dx / len;
+        createSVG("line", { x1: mid.x + nx * 7, y1: mid.y + ny * 7, x2: mid.x - nx * 7, y2: mid.y - ny * 7, stroke: "#dc2626", "stroke-width": 3, "stroke-linecap": "round" });
+    };
+    drawSegmentMark(A, P);
+    drawSegmentMark(P, B);
+}
+
+function createSide(name, a, b) {
+    const line = createSVG("line", { x1: a.x, y1: a.y, x2: b.x, y2: b.y, class: "triangle-side" });
+    line.addEventListener("click", function(e) {
+        e.stopPropagation();
+        if (step === 4 && perpMode) handleSideClick(name);
+    });
+}
+
+function render() {
+    svg.innerHTML = "";
+    const dynFontSize = getDynamicFontSize();
+
+    if (points.A && points.B && points.C) {
+        createSVG("polygon", { points: `${points.A.x},${points.A.y} ${points.B.x},${points.B.y} ${points.C.x},${points.C.y}`, fill: "#05966908", stroke: "none" }).style.pointerEvents = "none";
+    }
+
+    if (points.A && points.B) createSide("AB", points.A, points.B);
+    if (points.B && points.C) createSide("BC", points.B, points.C);
+    if (points.C && points.A) createSide("CA", points.C, points.A);
+
+    for (const key in bisectors) {
+        const ray = getAngleBisectorRay(key);
+        if (ray) {
+            createSVG("line", { x1: ray.x1, y1: ray.y1, x2: ray.x2, y2: ray.y2, class: "bisector" });
+            drawAngleArc(points[key], ray.u1, ray.u2, key);
+        }
+    }
+
+    if (incenter && incenter.visible) {
+        if (perps['D_measured'] && perps['E_measured'] && perps['F_measured']) {
+            createSVG("circle", { cx: incenter.x, cy: incenter.y, r: incenter.r, class: "incircle" });
+        }
+
+        if (isEquilateral) {
+            createSVG("circle", { cx: incenter.x, cy: incenter.y, r: incenter.R, class: "circumcircle" });
+            createSVG("line", { x1: incenter.x, y1: incenter.y, x2: points.A.x, y2: points.A.y, stroke: "#7c3aed", "stroke-width": 2, "stroke-dasharray": "4 3" });
+            const mxR = (incenter.x + points.A.x) / 2, myR = (incenter.y + points.A.y) / 2;
+            createSVG("rect", { x: mxR - 40, y: myR - 10, width: 80, height: 20, rx: 5, fill: "white", stroke: "#7c3aed", "stroke-width": 1.2 });
+            const lblR = createSVG("text", { x: mxR, y: myR, class: "measurement-label", fill: "#7c3aed", "text-anchor": "middle", "dominant-baseline": "middle" });
+            lblR.style.fill = "#7c3aed";
+            lblR.style.fontSize = "11px";
+            lblR.textContent = `외접원 R`;
+        }
+
+        const center = createSVG("circle", { cx: incenter.x, cy: incenter.y, r: isEquilateral ? 10 : 8, class: "center" });
+        if (isEquilateral) center.setAttribute("fill", "#dc2626");
+        center.addEventListener("click", function(e) {
+            e.stopPropagation();
+            if (step === 4) {
+                perpMode = true;
+                document.getElementById("s4msg").textContent = "이제 세 변 AB, BC, CA를 차례로 터치하세요.";
+                document.getElementById("hint").textContent = "💡 I를 선택했습니다. 이제 세 변을 터치하세요.";
+            }
+        });
+
+        const label = createSVG("text", { 
+            x: incenter.x + (dynFontSize * 0.8), 
+            y: incenter.y - (dynFontSize * 0.5), 
+            class: isEquilateral ? "center-label-equi" : "center-label" 
+        });
+        label.style.fontSize = `${dynFontSize}px`;
+        label.textContent = isEquilateral ? "I = O" : "I";
+    }
+
+    const footMapping = { "D": { side: ["A", "B"] }, "E": { side: ["B", "C"] }, "F": { side: ["C", "A"] } };
+    for (const footKey in footMapping) {
+        if (!perps[footKey] || !incenter) continue;
+        const info = footMapping[footKey];
+        const A = points[info.side[0]], B = points[info.side[1]];
+        const P = projectPointToSegment(incenter, A, B);
+
+        createSVG("line", { x1: incenter.x, y1: incenter.y, x2: P.x, y2: P.y, class: "perp-line" });
+        const hitLine = createSVG("line", { x1: incenter.x, y1: incenter.y, x2: P.x, y2: P.y, class: "perp-hit" });
+        hitLine.addEventListener("click", function(e) {
+            e.stopPropagation();
+            if (step === 5) measurePerp(footKey);
+        });
+
+        drawRightAngleMark(P, A, B);
+        if (isEquilateral) drawBisectMarks(A, B, P);
+
+        const pos = getOuterLabelPos(P, 18);
+        const label = createSVG("text", { x: pos.x, y: pos.y, class: "point-label" });
+        label.style.fontSize = `${dynFontSize}px`;
+        label.textContent = footKey;
+
+        if (perps[footKey + '_measured'] && !isEquilateral) {
+            const mx = (incenter.x + P.x) / 2, my = (incenter.y + P.y) / 2;
+            const cm = (distance(incenter, P) / PIXELS_PER_CM).toFixed(1);
+
+            createSVG('rect', { x: mx - 45, y: my - 10, width: 90, height: 20, rx: 6, class: 'measurement-bg' });
+            const measurement = createSVG('text', { x: mx, y: my, class: 'measurement-label', 'text-anchor': 'middle', 'dominant-baseline': 'middle' });
+            measurement.style.fontSize = "11px";
+            measurement.textContent = `I${footKey} = ${cm} cm`;
+        } else if (isEquilateral && footKey === "D") {
+            const mx = (incenter.x + P.x) / 2, my = (incenter.y + P.y) / 2;
+            createSVG('rect', { x: mx - 40, y: my - 10, width: 80, height: 20, rx: 5, fill: 'white', stroke: '#2563eb', 'stroke-width': 1.2 });
+            const measurement = createSVG('text', { x: mx, y: my, class: 'measurement-label', 'text-anchor': 'middle', 'dominant-baseline': 'middle' });
+            measurement.style.fontSize = "11px";
+            measurement.textContent = `내접원 r`;
+        }
+    }
+
+    ["A", "B", "C"].forEach(key => {
+        if (!points[key]) return;
+        const p = points[key];
+        const circle = createSVG("circle", { cx: p.x, cy: p.y, r: 10, fill: "#059669", stroke: "white", "stroke-width": 3, class: "point " + (step === 6 ? "drag-point" : "") });
+        
+        const startDrag = (e) => {
+            if (step === 6) {
+                e.preventDefault();
+                e.stopPropagation();
+                draggingPoint = key;
+            } else {
+                handlePointClick(key);
+            }
+        };
+
+        circle.addEventListener("mousedown", startDrag);
+        circle.addEventListener("touchstart", startDrag, { passive: false });
+
+        const pos = getOuterLabelPos(p, 22);
+        const label = createSVG("text", { x: pos.x, y: pos.y, class: "point-label" });
+        label.style.fontSize = `${dynFontSize}px`;
+        label.textContent = key;
+    });
+}
+
+function handleSVGClick(clientX, clientY) {
+    if (hasMovedPan) return; // 팬 이동 후 클릭 처리 취소
+    if (step !== 1) return;
+
+    const p = getSvgPoint(clientX, clientY);
+    let key = !points.A ? "A" : (!points.B ? "B" : (!points.C ? "C" : null));
+    if (!key) return;
+
+    points[key] = { x: p.x, y: p.y };
+    render();
+
+    const count = Object.keys(points).length;
+    document.getElementById("s1msg").textContent = `A, B, C 세 점을 차례로 터치하세요. (${count}/3)`;
+
+    if (count === 3) {
+        incenter = calculateIncenter(points.A, points.B, points.C);
+        if (incenter) incenter.visible = false;
+        step = 2;
+        activateStep(2);
+        document.getElementById("s1msg").className = "notice success";
+        document.getElementById("s1msg").textContent = "완료! 세 내각의 이등분선을 그려보세요.";
+        document.getElementById("s2msg").textContent = "꼭짓점 A, B, C를 하나씩 터치하세요.";
+        document.getElementById("hint").textContent = "💡 꼭짓점 A, B, C 중 하나를 터치하세요.";
+        document.getElementById("toolText").textContent = "꼭짓점을 터치하여 이등분선 그리기";
+        render();
+    }
+}
+
+svg.addEventListener("click", function(e) {
+    if (e.target === svg) handleSVGClick(e.clientX, e.clientY);
+});
+
+function handlePointClick(key) {
+    if (step === 2) {
+        if (bisectors[key]) return;
+        bisectors[key] = true;
+        render();
+
+        const count = Object.keys(bisectors).length;
+        document.getElementById("s2msg").textContent = `각의 이등분선을 모두 그려보세요. (${count}/3)`;
+
+        if (count === 3) {
+            step = 3;
+            activateStep(3);
+            document.getElementById("s2msg").className = "notice success";
+            document.getElementById("s2msg").textContent = "완료! 이제 세 각의 이등분선의 교점을 찾아보세요.";
+            document.getElementById("s3msg").textContent = "세 각의 이등분선이 만나는 점을 터치하세요.";
+            document.getElementById("hint").textContent = "💡 세 각의 이등분선의 교점을 찾아 터치하세요.";
+            document.getElementById("toolText").textContent = "각의 이등분선의 교점 찾기";
+            render();
+        }
+    }
+}
+
+svg.addEventListener("click", function(e) {
+    if (hasMovedPan || step !== 3 || e.target !== svg || !incenter) return;
+    const p = getSvgPoint(e.clientX, e.clientY);
+    if (distance(p, incenter) <= 35 / zoomScale) {
+        incenter.visible = true;
+        step = 4;
+        activateStep(4);
+        document.getElementById("s3msg").className = "notice success";
+        document.getElementById("s3msg").textContent = "정답입니다! 내심 I를 찾았습니다.";
+        document.getElementById("s4msg").textContent = "내심 I를 터치한 후 변 AB, BC, CA를 터치하세요.";
+        document.getElementById("hint").textContent = "💡 내심 I를 터치하세요.";
+        document.getElementById("toolText").textContent = "내심 I에서 세 변에 수선 내리기";
+        render();
+    }
+});
+
+function handleSideClick(sideName) {
+    const mapping = { "AB": "D", "BC": "E", "CA": "F" };
+    const footKey = mapping[sideName];
+    if (perps[footKey]) return;
+
+    perps[footKey] = true;
+    render();
+
+    const count = Object.keys(perps).length;
+    document.getElementById("s4msg").textContent = `세 변에 수선을 그리는 중입니다... (${count}/3)`;
+
+    if (count === 3) {
+        step = 5;
+        activateStep(5);
+        document.getElementById("s4msg").className = "notice success";
+        document.getElementById("s4msg").textContent = "완료! 내심 I에서 세 변에 수선을 내렸습니다.";
+        document.getElementById("s5msg").textContent = "파란색 수선 ID, IE, IF를 터치해 길이를 확인해보세요.";
+        document.getElementById("hint").textContent = "💡 파란색 수선 ID, IE, IF를 터치하여 길이를 측정해보세요.";
+        document.getElementById("toolText").textContent = "수선의 길이 측정하기";
+    }
+}
+
+function measurePerp(key) {
+    if (step !== 5 || perps[key + '_measured']) return;
+    perps[key + '_measured'] = true;
+
+    const footMapping = { "D": ["A", "B"], "E": ["B", "C"], "F": ["C", "A"] };
+    const side = footMapping[key];
+    const P = projectPointToSegment(incenter, points[side[0]], points[side[1]]);
+
+    const cm = (distance(incenter, P) / PIXELS_PER_CM).toFixed(1);
+    document.getElementById(`i${key.toLowerCase()}Len`).textContent = `${cm} cm`;
+    render();
+
+    const measuredCount = ["D", "E", "F"].filter(k => perps[k + '_measured']).length;
+    document.getElementById("s5msg").textContent = `ID, IE, IF를 모두 터치하세요. (${measuredCount}/3)`;
+
+    if (measuredCount === 3) {
+        document.getElementById("s5msg").className = "notice success";
+        document.getElementById("s5msg").textContent = "측정 완료! 내심에서 세 변에 이르는 거리가 같습니다.";
+        document.getElementById("finding").style.display = "block";
+    }
+}
+
+function goToStep6() {
+    step = 6;
+    activateStep(6);
+    document.getElementById("toolText").textContent = "점 A, B, C 자유 드래그 모드";
+    updateShapeNotice();
+    render();
+}
+
+function goToStep7() {
+    step = 7;
+    activateStep(7);
+    document.getElementById("toolText").textContent = "내심 탐구 완료!";
+    document.getElementById("hint").textContent = "🎉 수고하셨습니다! 내심 개념을 최종 정리해봅시다.";
+}
+
+function updateShapeNotice() {
+    const st = getTriangleState();
+    if (!st) return;
+    document.getElementById("triTypeStr").textContent = st.type;
+    document.getElementById("triPosStr").innerHTML = st.pos;
+
+    const hintEl = document.getElementById("hint");
+    if (isEquilateral) {
+        hintEl.innerHTML = `📐 [${st.type}] <span class="hint-equi">내심과 외심의 위치가 같습니다!</span>`;
+    } else {
+        hintEl.innerHTML = `📐 [${st.type}] ${st.pos}`;
+    }
+}
+
+function handleMove(clientX, clientY) {
+    if (step !== 6 || !draggingPoint) return;
+
+    const p = getSvgPoint(clientX, clientY);
+    points[draggingPoint] = { x: p.x, y: p.y };
+
+    if (!hasDraggedInStep6) {
+        hasDraggedInStep6 = true;
+        document.getElementById("toStep7Btn").style.display = "block";
+    }
+
+    const newCenter = calculateIncenter(points.A, points.B, points.C);
+    if (newCenter) {
+        incenter = { ...newCenter, visible: true };
+        const footMapping = { "D": ["A", "B"], "E": ["B", "C"], "F": ["C", "A"] };
+        ["D", "E", "F"].forEach(k => {
+            if (perps[k + '_measured']) {
+                const side = footMapping[k];
+                const P = projectPointToSegment(incenter, points[side[0]], points[side[1]]);
+                const cm = (distance(incenter, P) / PIXELS_PER_CM).toFixed(1);
+                document.getElementById(`i${k.toLowerCase()}Len`).textContent = `${cm} cm`;
+            }
+        });
+    }
+
+    updateShapeNotice();
+    render();
+}
+
+window.addEventListener("mousemove", (e) => handleMove(e.clientX, e.clientY));
+window.addEventListener("touchmove", (e) => {
+    if (draggingPoint && e.touches.length === 1) {
+        e.preventDefault();
+        handleMove(e.touches[0].clientX, e.touches[0].clientY);
+    }
+}, { passive: false });
+
+const endDrag = () => { draggingPoint = null; };
+window.addEventListener("mouseup", endDrag);
+window.addEventListener("touchend", endDrag);
+
+function activateStep(nextStep) {
+    for (let i = 1; i <= 7; i++) {
+        const el = document.getElementById(`step${i}`);
+        if (!el) continue;
+        if (i < nextStep) el.className = "stage done";
+        else if (i === nextStep) {
+            el.className = "stage active";
+            el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        } else el.className = "stage locked";
+    }
+}
+
+function resetAll() {
+    resetZoom();
+    points = {}; bisectors = {}; perps = {}; incenter = null;
+    step = 1; perpMode = false; draggingPoint = null; hasDraggedInStep6 = false; isEquilateral = false;
+
+    activateStep(1);
+    document.getElementById("s1msg").className = "notice";
+    document.getElementById("s1msg").textContent = "A, B, C 세 점을 차례로 터치하세요. (0/3)";
+    document.getElementById("s2msg").className = "notice";
+    document.getElementById("s2msg").textContent = "먼저 삼각형 ABC를 완성하세요.";
+    document.getElementById("s3msg").className = "notice";
+    document.getElementById("s3msg").textContent = "먼저 세 각의 이등분선을 그려보세요.";
+    document.getElementById("s4msg").className = "notice";
+    document.getElementById("s4msg").textContent = "내심 I를 먼저 찾아보세요.";
+    document.getElementById("s5msg").className = "notice";
+    document.getElementById("s5msg").textContent = "ID, IE, IF를 모두 터치하세요.";
+
+    document.getElementById("idLen").textContent = "미측정";
+    document.getElementById("ieLen").textContent = "미측정";
+    document.getElementById("ifLen").textContent = "미측정";
+
+    document.getElementById("finding").style.display = "none";
+    document.getElementById("toStep7Btn").style.display = "none";
+
+    document.getElementById("hint").textContent = "💡 모눈 위 3곳을 터치하여 삼각형 ABC를 완성하세요.";
+    document.getElementById("toolText").textContent = "모눈 터치로 점 A, B, C 찍기";
+
+    render();
+    applyZoom();
+}
+</script>
+</body>
+</html>
